@@ -1,0 +1,49 @@
+// See https://containers.dev/implementors/json_reference/ for configuration reference
+{
+  "name": "SF Main",
+  "build": {
+    "dockerfile": "dockerfile"
+  },
+  "remoteUser": "sfdx",
+  "containerUser": "sfdx",
+  "features": {
+    "ghcr.io/devcontainers-contrib/features/fish-apt-get:1": {},
+    "ghcr.io/devcontainers-contrib/features/pnpm:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      // Set *default* container specific settings.json values on container create.
+      "settings": {
+        "salesforcedx-vscode-apex.java.home": "/usr/lib/jvm/java-11-openjdk-amd64",
+        "editor.tabSize": 2,
+        "terminal.integrated.defaultProfile.linux": "fish",
+        "redhat.telemetry.enabled": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[html]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[json]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[jsonc]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        }
+      },
+      // Add the IDs of extensions you want installed when the container is created.
+      "extensions": [
+        "salesforce.salesforcedx-vscode",
+        "redhat.vscode-xml",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "chuckjonas.apex-pmd",
+        "waderyan.gitblame"
+      ]
+    }
+  }
+}
