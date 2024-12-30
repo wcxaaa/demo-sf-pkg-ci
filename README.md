@@ -2,6 +2,25 @@
 
 A pit to discover CI flows based on scratch orgs and unlocked packages
 
+## Manual package creation
+
+```shell
+
+# Create definition
+sf package create --name PitHello --package-type Unlocked --path pit-hello --no-namespace
+
+# Create Version
+sf package version create --package PitHello --code-coverage --installation-key (PASSWORD) --wait 10
+
+# Install a package
+# > In a real scenario, remember to always speficy `--target-org`
+sf package install --package PitHello@x.x.x-x --installation-key (PASSWORD) --wait 10 --publish-wait 10
+
+# Create a release
+sf package version promote --package PitHello@x.x.x-x
+
+```
+
 ## Appendix - Salesforce DX Project: Next Steps
 
 Now that you’ve created a Salesforce DX project, what’s next? Here are some documentation resources to get you started.
