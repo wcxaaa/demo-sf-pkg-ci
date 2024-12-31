@@ -6,18 +6,36 @@ A pit to discover CI flows based on scratch orgs and unlocked packages
 
 ```shell
 
-# Create definition
+# Create a definition
 sf package create --name PitHello --package-type Unlocked --path pit-hello --no-namespace
 
-# Create Version
-sf package version create --package PitHello --code-coverage --installation-key (PASSWORD) --wait 10
+# Create a Version
+sf package version create --package PitHello --code-coverage --installation-key $(PASSWORD) --wait 10
 
 # Install a package
 # > In a real scenario, remember to always speficy `--target-org`
-sf package install --package PitHello@x.x.x-x --installation-key (PASSWORD) --wait 10 --publish-wait 10
+sf package install --package PitHello@x.x.x-x --installation-key $(PASSWORD) --wait 10 --publish-wait 10
 
 # Create a release
 sf package version promote --package PitHello@x.x.x-x
+
+```
+
+## Scratch org creation
+
+```shell
+
+# Create a Scratch Org
+sf org create scratch --alias dev --definition-file config/project-scratch-def.json --duration-days 30 --admin-email $(ADMIN_EMAIL) --no-namespace --set-default
+
+# Open a Scratch Org
+sf org open --target-org dev
+
+# List Scratch Orgs in the Dev Hub
+sf data query --query='SELECT Id, Name, OrgName, CreatedDate, Description, ScratchOrg, SignupUsername FROM ActiveScratchOrg' --target-org $(DEV_HUB_ORG)
+
+# Delete a scratch Org
+sf org delete scratch --target-org dev
 
 ```
 
