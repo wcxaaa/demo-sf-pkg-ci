@@ -2,7 +2,15 @@
 
 A pit to discover CI flows based on scratch orgs and unlocked packages
 
-## Manual package creation
+## Dev Hub Setup
+
+Connected app or External Client ID app
+
+callback url: http://localhost:1717/OauthRedirect
+
+## Appendix - Involved SF commands
+
+### Package creation
 
 ```shell
 
@@ -21,18 +29,33 @@ sf package version promote --package PitHello@x.x.x-x
 
 ```
 
-## Scratch org creation
+### Scratch org creation
 
 ```shell
 
 # Create a Scratch Org
-sf org create scratch --alias dev --definition-file config/project-scratch-def.json --duration-days 30 --admin-email $(ADMIN_EMAIL) --no-namespace --set-default
+sf org create scratch --alias dev --name "[Dev]" --definition-file config/project-scratch-def.json --duration-days 30 --admin-email $(ADMIN_EMAIL) --no-namespace --set-default
+
+# Display Org credentials
+sf org display --target-org $(DEV_HUB_ORG) --verbose
 
 # Open a Scratch Org
 sf org open --target-org dev
 
 # List Scratch Orgs in the Dev Hub
-sf data query --query='SELECT Id, Name, OrgName, CreatedDate, Description, ScratchOrg, SignupUsername FROM ActiveScratchOrg' --target-org $(DEV_HUB_ORG)
+sf data query --query "SELECT Id, SignupUsername, LoginUrl, ExpirationDate, Status, OrgName, Description, ScratchOrg FROM ScratchOrgInfo WHERE Status = 'Active'" --target-org $(DEV_HUB_ORG)
+
+# > (alternatively)
+sf data query --query 'SELECT Id, Name, OrgName, CreatedDate, Description, ScratchOrg, SignupUsername FROM ActiveScratchOrg' --target-org $(DEV_HUB_ORG)
+
+# Log in with SFDX URL
+echo $URL | sf org login sfdx-url --alias dev --sfdx-url-stdin
+
+# Log in with JWT
+sf org login jwt --alias dev --client-id $(DEV_HUB_CLIENT_ID) --jwt-key-file $(DEV_HUB_PRIVATE_KEY_PATH) --username $(SIGNUP_USERNAME) --instance-url $(LOGIN_URL) --json
+
+# Generate a password for scratch org user
+sf org generate password --target-org $(DEV_HUB_ORG)
 
 # Delete a scratch Org
 sf org delete scratch --target-org dev
