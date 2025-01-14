@@ -1,0 +1,80 @@
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+
+stages:
+  - install
+  - test
+  - deploy
+
+"Install":
+  stage: install
+  image: node:23
+  script:
+    - corepack enable
+    - corepack prepare pnpm@9.15.2 --activate
+    - pnpm install --frozen-lockfile
+  artifacts:
+    name: "tmp_node_modules"
+    untracked: true
+    expire_in: 30 mins
+    paths:
+      - node_modules/
+
+"LWC Test":
+  stage: test
+  image: node:23
+  dependencies:
+    - "Install"
+  allow_failure: true
+  script:
+    - npm run test:unit:coverage
+
+"Deploy (Mock)":
+  stage: deploy
+  image: salesforce/cli:2.72.0-full
+  except:
+    - main
+  script:
+    # Authenticate to Dev Hub
+    - >
+      sf org login jwt
+      --client-id $DEV_HUB_CLIENT_ID
+      --jwt-key-file $DEV_HUB_PRIVATE_KEY_PATH
+      --username $DEV_HUB_USERNAME
+      --alias devhub
+      --instance-url $DEV_HUB_MY_DOMAIN_URL
+      --set-default
+      --set-default-dev-hub
+    # Connect to the test scratch org
+    - node $(pwd)/scripts/js/ciScratchOrgHandler.mjs
+    # Perform virtual deployment
+    - >
+      sf project deploy start
+      --dry-run
+      --concise
+      --target-org ${TEST_ORG_NAME}
+      --test-level RunLocalTests
+      --junit
+      --results-dir $(pwd)/logs
+      || (sleep 1s
+      && cat $(pwd)/logs/junit/junit.xml
+      && exit -1)
+
+"Deploy":
+  stage: deploy
+  image: salesforce/cli:2.72.0-full
+  only:
+    - main
+  script:
+    # Authenticate to Dev Hub
+    - >
+      sf org login jwt
+      --client-id $DEV_HUB_CLIENT_ID
+      --jwt-key-file $DEV_HUB_PRIVATE_KEY_PATH
+      --username $DEV_HUB_USERNAME
+      --alias devhub
+      --instance-url $DEV_HUB_MY_DOMAIN_URL
+      --set-default
+      --set-default-dev-hub
+    # Create Package version and install the lastest package
+    - node $(pwd)/scripts/js/ciPackageHandler.mjs
