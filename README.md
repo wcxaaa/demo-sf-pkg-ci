@@ -4,9 +4,60 @@ A pit to discover CI flows based on scratch orgs and unlocked packages
 
 ## Dev Hub Setup
 
-Connected app or External Client ID app
+In Certificate and Key Management
 
-callback url: http://localhost:1717/OauthRedirect
+- Generate a self-signed certificate
+  - Exportable Private Key: True
+- Export to Keystore
+  - Set a temporary password
+  - Click "Export"
+
+Extract private key
+
+- Open the downloaded jks file with [KeyStore Explorer][keyStoreExplorer]
+  - Right click on your new item, Export -> Export Private Key
+  - Select "OpenSSL"
+  - Uncheck "Encrypt", Check PEM
+  - Save the private key
+- Export certificate with KeyStore Explorer
+  - (Or) Download from Salesforce "Certificate and Key Management" page
+
+Create a Connected App
+
+- Note: External Client ID App is not yet supported. A "C-1016" error will occur.
+
+- OAuth settings
+
+  - OAuth - enabled
+  - Callback url: http://localhost:1717/OauthRedirect
+  - OAuth scopes: api, web, refresh_token
+  - Enable JWT Bearer Flow
+  - Upload the certificate generated in the previous section
+
+- Policies
+
+  - Permitted Users: Admin approved users are pre-authorized
+  - Profiles: System Administrator
+  - (Optional) Permission set: (CI Management permission set)
+
+- View and record the Consumer Key of this app.
+
+## CI Setup
+
+The following variables should be configured on the CI platform.
+
+| Name                     | Required On   | Description                                                                                                                                               |
+| ------------------------ | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CI_DEP_BOT_USERNAME      | Github        | Github Dependabot username                                                                                                                                |
+| CI_ENV_VAR_URL           | Github,Gitlab | URL for the CI to update CI variables. Remove the trailing slash.                                                                                         |
+| CI_ADMIN_TOKEN           | Github,Gitlab | Admin Token which has full access to api, that used to update ci env var.                                                                                 |
+| DEV_HUB_CLIENT_ID        | Github,Gitlab | Consumer Key of the Connected app                                                                                                                         |
+| DEV_HUB_PRIVATE_KEY      | Github,Gitlab | Private key content. Used to connect to the Org with JWT Bearer token flow                                                                                |
+| DEV_HUB_PRIVATE_KEY_PATH | Github,Gitlab | Path to the private key file. On Github, this is a path e.g. `/tmp/github.key`. On Gitlab, this is a File type secret, containing the private key content |
+| DEV_HUB_USERNAME         | Github,Gitlab | Admin username of Dev Hub                                                                                                                                 |
+| DEV_HUB_MY_DOMAIN_URL    | Github,Gitlab | Dev Hub "My Domain" URL, including "https://"                                                                                                             |
+| TEST_ORG_NAME            | Github,Gitlab | Alias of the test scratch org to use. E.g. `ciTest`                                                                                                       |
+| PACKAGE_INSTALLATION_KEY | Github,Gitlab | Password to install the built package                                                                                                                     |
 
 ## Appendix - Involved SF commands
 
@@ -80,3 +131,7 @@ The `sfdx-project.json` file contains useful configuration information for your 
 - [Salesforce CLI Setup Guide](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_intro.htm)
 - [Salesforce DX Developer Guide](https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_intro.htm)
 - [Salesforce CLI Command Reference](https://developer.salesforce.com/docs/atlas.en-us.sfdx_cli_reference.meta/sfdx_cli_reference/cli_reference.htm)
+
+<!-- Refs -->
+
+[keyStoreExplorer]: https://keystore-explorer.org

@@ -12,16 +12,18 @@ import { ensureConfiguredEnvVars } from "./ciUtils.mjs";
  * @typedef { import("./sf.interface").ISFOrgGeneratePassword } ISFOrgGeneratePassword
  * @typedef { import("./sf.interface").IScratchOrgInfo } IScratchOrgInfo
  * @typedef { import("./sf.interface").ISFOrgDisplay } ISFOrgDisplay
- * @typedef { import("./gitlab.interface").IUpdateProjectVariableResponse } IUpdateProjectVariableResponse
- * @typedef { import("./gitlab.interface").IGeneralResponse } IGeneralResponse
+ * @typedef { import("./gitlab.interface").IUpdateProjectVariableResponse } IUpdateGitlabEnvResponse
+ * @typedef { import("./gitlab.interface").IGeneralResponse } IGitlabGeneralResponse
+ * @typedef { import("./github.interface").IUpdateRepositoryVariableResponse } IUpdateGithubEnvResponse
  */
 
 export class CIScratchOrgHandler {
-  #testOrgName = process.env.TEST_ORG_NAME;
-  #ciEnvVarUrl = process.env.GITLAB_CI_ENV_VAR_URL;
-  #ciJobToken = process.env.GITLAB_ADMIN_TOKEN;
+  #ciPlatform = process.env.CI_PLATFORM ?? "Github";
+  #ciEnvVarUrl = process.env.CI_ENV_VAR_URL;
+  #ciJobToken = process.env.CI_ADMIN_TOKEN;
   #devhubClientId = process.env.DEV_HUB_CLIENT_ID;
   #devhubPrivateKeyPath = process.env.DEV_HUB_PRIVATE_KEY_PATH;
+  #testOrgName = process.env.TEST_ORG_NAME;
 
   #scratchDefinitionPath = resolve(
     process.env.SCRATCH_DEF_PATH ?? "config/project-scratch-def.json"
@@ -30,8 +32,8 @@ export class CIScratchOrgHandler {
   constructor() {
     ensureConfiguredEnvVars([
       "TEST_ORG_NAME",
-      "GITLAB_CI_ENV_VAR_URL",
-      "GITLAB_ADMIN_TOKEN",
+      "CI_ENV_VAR_URL",
+      "CI_ADMIN_TOKEN",
       "DEV_HUB_CLIENT_ID",
       "DEV_HUB_PRIVATE_KEY_PATH"
     ]);
@@ -90,7 +92,9 @@ export class CIScratchOrgHandler {
     );
 
     if (createScratchOrgOutput.status !== 0) {
-      throw new Error(`Failed to create scratch org.`);
+      throw new Error(
+        `Failed to create scratch org: ${JSON.stringify(createScratchOrgOutput.warnings)}`
+      );
     }
 
     const orgInfo = createScratchOrgOutput.result.scratchOrgInfo;
@@ -132,13 +136,56 @@ export class CIScratchOrgHandler {
   /**
    * @param {string} key
    * @param {string} value
-   * @returns { IUpdateProjectVariableResponse }
+   * @returns { unknown } // IUpdateGitlabEnvResponse | IGitlabGeneralResponse | IUpdateGithubEnvResponse | null
    */
   #updateCIEnvVar = (key, value) => {
     const sanitizedValue = value.replace(/&/g, "\\&");
-    const setEnvVarCommand = `curl --request PUT --header "PRIVATE-TOKEN: ${this.#ciJobToken}" --form "value=${sanitizedValue}" "${this.#ciEnvVarUrl}/${key}" --silent`;
 
-    /** @type { IUpdateProjectVariableResponse | IGeneralResponse } */
+    if (this.#ciPlatform === "Github") {
+      return this.#updateGithubCIEnvVar(key, sanitizedValue);
+    } else if (this.#ciPlatform === "Gitlab") {
+      return this.#updateGitlabCIEnvVar(key, sanitizedValue);
+    } else {
+      throw new Error(`CI platform ${this.#ciPlatform} is not supported.`);
+    }
+  };
+
+  /**
+   * @param {string} key
+   * @param {string} value
+   * @returns { IUpdateGithubEnvResponse }
+   */
+  #updateGithubCIEnvVar = (key, value) => {
+    // Additionally, need to escape double quotes
+    const sanitizedValue = value.replace(/"/g, '\\"');
+
+    const setEnvVarCommand = `curl -L -X PATCH -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${this.#ciJobToken}" -H "X-GitHub-Api-Version: 2022-11-28" "${this.#ciEnvVarUrl}/${key}" -d '{"value": "${sanitizedValue}"}' --silent`;
+
+    /** @type { string | null } */
+    const rawOutput = execSync(setEnvVarCommand, { encoding: "utf-8" });
+
+    /** @type { IUpdateGithubEnvResponse } */
+    const setEnvVarOutput = rawOutput ? JSON.parse(rawOutput) : {};
+
+    if (setEnvVarOutput?.status && setEnvVarOutput.status !== "200") {
+      throw new Error(
+        // @ts-ignore
+        `Failed to update Github CI environment variable: ${JSON.stringify(setEnvVarOutput.message)}`
+      );
+    }
+
+    return setEnvVarOutput;
+  };
+
+  /**
+   * @param {string} key
+   * @param {string} value assumed to be sanitized
+   * @returns { IUpdateGitlabEnvResponse }
+   */
+  #updateGitlabCIEnvVar = (key, value) => {
+    const setEnvVarCommand = `curl --request PUT --header "PRIVATE-TOKEN: ${this.#ciJobToken}" --form "value=${value}" "${this.#ciEnvVarUrl}/${key}" --silent`;
+
+    /** @type { IUpdateGitlabEnvResponse | IGitlabGeneralResponse } */
     const setEnvVarOutput = JSON.parse(
       execSync(setEnvVarCommand, { encoding: "utf-8" })
     );
@@ -147,7 +194,7 @@ export class CIScratchOrgHandler {
     if (!setEnvVarOutput.key) {
       throw new Error(
         // @ts-ignore
-        `Failed to update CI environment variable: ${JSON.stringify(setEnvVarOutput.message)}`
+        `Failed to update Gitlab CI environment variable: ${JSON.stringify(setEnvVarOutput.message)}`
       );
     }
 

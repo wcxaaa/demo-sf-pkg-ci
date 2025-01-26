@@ -1,6 +1,9 @@
 include:
   - template: Jobs/SAST.gitlab-ci.yml
 
+variables:
+  CI_PLATFORM: "Gitlab"
+
 stages:
   - install
   - test

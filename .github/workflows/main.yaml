@@ -1,0 +1,128 @@
+name: Main
+
+on:
+  push:
+    branches:
+      - "**"
+
+env:
+  BOT_USERNAME: ${{ vars.CI_DEP_BOT_USERNAME }}
+  CI_PLATFORM: Github
+  CI_ENV_VAR_URL: ${{ vars.CI_ENV_VAR_URL }}
+  CI_ADMIN_TOKEN: ${{ secrets.CI_ADMIN_TOKEN }}
+  DEV_HUB_CLIENT_ID: ${{ secrets.DEV_HUB_CLIENT_ID }}
+  DEV_HUB_PRIVATE_KEY: ${{ secrets.DEV_HUB_PRIVATE_KEY }}
+  DEV_HUB_PRIVATE_KEY_PATH: ${{ vars.DEV_HUB_PRIVATE_KEY_PATH }}
+  DEV_HUB_USERNAME: ${{ vars.DEV_HUB_USERNAME }}
+  DEV_HUB_MY_DOMAIN_URL: ${{ vars.DEV_HUB_MY_DOMAIN_URL }}
+  TEST_ORG_NAME: ${{ vars.TEST_ORG_NAME }}
+  PACKAGE_INSTALLATION_KEY: ${{ secrets.PACKAGE_INSTALLATION_KEY }}
+
+jobs:
+  # Note: Offical Github Actions available at https://github.com/actions
+  # Note: The value of ${{ github.workspace }} is "/home/runner/work/my-project/my-project". Note that two "my-project"s!
+  install:
+    name: Install
+    runs-on: ubuntu-latest
+    container:
+      image: node:23
+      # Note: Cannot use a non-root user since enabling pnpm requires access to "/usr/local/lib"
+    steps:
+      - name: Enable corepack
+        run: corepack enable
+      - name: Enable pnpm
+        run: corepack prepare pnpm@9.15.2 --activate
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Store node_modules
+        uses: actions/upload-artifact@v4
+        with:
+          name: tmp_node_modules
+          path: node_modules/
+          retention-days: 1
+          # Required for the ".bin" folder in node_modules
+          include-hidden-files: true
+  lwcTest:
+    name: "LWC Test"
+    runs-on: ubuntu-latest
+    container:
+      image: node:23
+    needs: ["install"]
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Download node_modules
+        uses: actions/download-artifact@v4
+        with:
+          name: tmp_node_modules
+          path: ${{ github.workspace }}/node_modules/
+      - name: Allow execution of bins in node_modules
+        run: chmod -R +x node_modules/.bin
+      - name: Run LWC Tests
+        run: npm run test:unit:coverage
+  deploy_mock:
+    name: "Deploy (Mock)"
+    if: ${{ github.ref != 'refs/heads/main' && github.actor != vars.CI_DEP_BOT_USERNAME }}
+    runs-on: ubuntu-latest
+    container:
+      image: salesforce/cli:2.72.0-full
+      # Note: Cannot use a non-root user since SF CLI wants to `mkdir /github/home/.sf`
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Save Private Key
+        run: echo "$DEV_HUB_PRIVATE_KEY" > $DEV_HUB_PRIVATE_KEY_PATH
+      - name: Authenticate to Dev Hub
+        run: >
+          sf org login jwt
+          --client-id $DEV_HUB_CLIENT_ID
+          --jwt-key-file $DEV_HUB_PRIVATE_KEY_PATH
+          --username $DEV_HUB_USERNAME
+          --alias devhub
+          --instance-url $DEV_HUB_MY_DOMAIN_URL
+          --set-default
+          --set-default-dev-hub
+      - name: Connect to the test scratch org
+        run: node $(pwd)/scripts/js/ciScratchOrgHandler.mjs
+      - name: Perform virtual deployment
+        run: >
+          sf project deploy start
+          --dry-run
+          --concise
+          --target-org ${TEST_ORG_NAME}
+          --test-level RunLocalTests
+          --junit
+          --results-dir $(pwd)/logs
+          || (sleep 1s
+          && cat $(pwd)/logs/junit/junit.xml
+          && exit -1)
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    container:
+      image: salesforce/cli:2.72.0-full
+      # Note: Cannot use a non-root user since SF CLI wants to `mkdir /github/home/.sf`
+    # Note: In real scenario, "deploy" should run after "lwcTest"
+    # (needs: ["lwcTest"])
+    # However, since "lwcTest" is optional in this example, we run "deploy" right from the start
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Save Private Key
+        run: echo "$DEV_HUB_PRIVATE_KEY" > $DEV_HUB_PRIVATE_KEY_PATH
+      - name: Authenticate to Dev Hub
+        run: >
+          sf org login jwt
+          --client-id $DEV_HUB_CLIENT_ID
+          --jwt-key-file $DEV_HUB_PRIVATE_KEY_PATH
+          --username $DEV_HUB_USERNAME
+          --alias devhub
+          --instance-url $DEV_HUB_MY_DOMAIN_URL
+          --set-default
+          --set-default-dev-hub
+      - name: Create Package version and install the lastest package
+        run: node $(pwd)/scripts/js/ciPackageHandler.mjs
