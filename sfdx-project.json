@@ -6,8 +6,7 @@
       "path": "pit-hello",
       "default": true,
       "package": "PitHello",
-      "versionDescription": "Hello Pit package",
-      "branch": ""
+      "versionDescription": "Hello Pit package"
     }
   ],
   "name": "pit-hello-packages",
