@@ -4,4 +4,6 @@
 
 Used in the Demo of Salesforce Development CI flows based on scratch orgs and unlocked packages
 
+Enable Github Actions before pushing new changes.
+
 See upstream for more details.
