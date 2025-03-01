@@ -1,8 +1,8 @@
 @IsTest
-public with sharing class BonjourHiServiceTest {
+public with sharing class BonjourHiServiceV2Test {
   @IsTest
   static void testGreet() {
-    BonjourHiService service = new BonjourHiService();
+    BonjourHiServiceV2 service = new BonjourHiServiceV2();
     String result = service.greet('Alice');
     Assert.areEqual('Bonjour Alice!', result);
   }

@@ -3,19 +3,17 @@
     {
       "versionName": "version 1.0.0",
       "versionNumber": "1.0.0.NEXT",
-      "path": "pit-hello",
+      "path": "pkg-bonjour-hi",
       "default": true,
-      "package": "PitHello",
-      "versionDescription": "Hello Pit package"
+      "package": "BonjourHi",
+      "versionDescription": "Beta"
     }
   ],
-  "name": "pit-hello-packages",
+  "name": "demo-sf-pkg-ci",
   "namespace": "",
   "sfdcLoginUrl": "https://login.salesforce.com",
   "sourceApiVersion": "62.0",
   "packageAliases": {
-    "PitHello": "0Hobm0000000E2zCAE",
-    "PitHello@1.0.0-1": "04tbm0000005HGLAA2",
-    "PitHello@1.0.0-1-202412301735591580": "04tbm0000005HJZAA2"
+    "BonjourHi": "0Hobm0000000L9JCAU"
   }
 }
