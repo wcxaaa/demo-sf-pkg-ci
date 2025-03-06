@@ -4,6 +4,6 @@ public with sharing class BonjourHiServiceV2Test {
   static void testGreet() {
     BonjourHiServiceV2 service = new BonjourHiServiceV2();
     String result = service.greet('Bob');
-    Assert.areEqual('Bonjour Bobb!', result);
+    Assert.areEqual('Bonjour Bob!', result);
   }
 }
